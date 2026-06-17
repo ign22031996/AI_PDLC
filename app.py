@@ -9,7 +9,7 @@ import os
 load_dotenv()
 
 def _logo_b64() -> str:
-    path = os.path.join(os.path.dirname(__file__), "Картинки", "исправить 2", "Основное ЛОГО на UI.webp")
+    path = os.path.join(os.path.dirname(__file__), "static", "logo.webp")
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 

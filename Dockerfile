@@ -2,12 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-ARG PIP_INDEX_URL=https://nexus-dashboard.21-school.ru/repository/pypi-proxy/simple/
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir \
-    --index-url ${PIP_INDEX_URL} \
-    --trusted-host nexus-dashboard.21-school.ru \
     -r requirements.txt
 
 COPY . .
