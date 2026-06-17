@@ -16,7 +16,7 @@ def analyze_program_stream(
     program_name: str = "Учебная программа",
     scenario: str = "А — Проектируемая программа",
 ) -> Generator[str, None, None]:
-    base_url = os.getenv("LLM_BASE_URL", "http://10.77.88.5:11435/v1")
+    base_url = os.getenv("LLM_BASE_URL", "http://ai-1.msk.21-school.ru:11436/v1")
     model    = os.getenv("LLM_MODEL", "qwen3.5:9b")
 
     client = OpenAI(api_key="ollama", base_url=base_url, timeout=300)
