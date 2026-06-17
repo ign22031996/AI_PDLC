@@ -51,15 +51,23 @@ def analyze_program_stream(
             temperature=0.2,
             max_tokens=4000,
             stream=True,
-            extra_body={"think": False},
         )
 
         total_chars = 0
+        inside_think = False
         for chunk in stream:
             delta = chunk.choices[0].delta.content
-            if delta:
-                total_chars += len(delta)
-                yield delta
+            if not delta:
+                continue
+            # фильтруем <think>...</think> блоки thinking-моделей
+            if "<think>" in delta:
+                inside_think = True
+            if inside_think:
+                if "</think>" in delta:
+                    inside_think = False
+                continue
+            total_chars += len(delta)
+            yield delta
 
         log.info("gap-analysis finished | program=%s chars=%d", program_name, total_chars)
 
