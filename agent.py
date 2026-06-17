@@ -1,8 +1,7 @@
 import os
 import traceback
 from dotenv import load_dotenv
-from gigachat import GigaChat
-from gigachat.models import Chat, Messages, MessagesRole
+from openai import OpenAI
 from prompts import SYSTEM_PROMPT
 from logger import get_logger
 from typing import Generator
@@ -17,10 +16,10 @@ def analyze_program_stream(
     program_name: str = "Учебная программа",
     scenario: str = "А — Проектируемая программа",
 ) -> Generator[str, None, None]:
-    credentials = os.getenv("GIGACHAT_CREDENTIALS", "")
-    model       = os.getenv("GIGACHAT_MODEL", "GigaChat")
-    verify_ssl  = os.getenv("GIGACHAT_VERIFY_SSL", "false").lower() == "true"
-    scope       = os.getenv("GIGACHAT_SCOPE", "GIGACHAT_API_PERS")
+    base_url = os.getenv("LLM_BASE_URL", "http://10.77.88.5:11435/v1")
+    model    = os.getenv("LLM_MODEL", "qwen3.5:9b")
+
+    client = OpenAI(api_key="ollama", base_url=base_url, timeout=300)
 
     user_prompt = f"""Проанализируй следующие материалы образовательной программы по AI PDLC Competency Matrix v2.
 
@@ -39,31 +38,28 @@ def analyze_program_stream(
 Не придумывай компетенции которых нет — ставь N0 если компетенция отсутствует.
 """
 
-    log.info("gap-analysis started | program=%s scenario=%s model=%s", program_name, scenario, model)
+    log.info("gap-analysis started | program=%s scenario=%s model=%s url=%s",
+             program_name, scenario, model, base_url)
 
     try:
-        chat = Chat(
+        stream = client.chat.completions.create(
+            model=model,
             messages=[
-                Messages(role=MessagesRole.SYSTEM, content=SYSTEM_PROMPT),
-                Messages(role=MessagesRole.USER,   content=user_prompt),
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": user_prompt},
             ],
             temperature=0.2,
             max_tokens=4000,
+            stream=True,
+            extra_body={"think": False},
         )
 
         total_chars = 0
-        with GigaChat(
-            credentials=credentials,
-            scope=scope,
-            verify_ssl_certs=verify_ssl,
-            timeout=300,
-        ) as giga:
-            for chunk in giga.stream(chat):
-                if chunk.choices:
-                    delta = chunk.choices[0].delta.content
-                    if delta:
-                        total_chars += len(delta)
-                        yield delta
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                total_chars += len(delta)
+                yield delta
 
         log.info("gap-analysis finished | program=%s chars=%d", program_name, total_chars)
 
