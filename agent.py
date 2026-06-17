@@ -1,7 +1,7 @@
 import os
 import traceback
+import httpx
 from dotenv import load_dotenv
-from openai import OpenAI
 from prompts import SYSTEM_PROMPT
 from logger import get_logger
 from typing import Generator
@@ -16,10 +16,8 @@ def analyze_program_stream(
     program_name: str = "Учебная программа",
     scenario: str = "А — Проектируемая программа",
 ) -> Generator[str, None, None]:
-    base_url = os.getenv("LLM_BASE_URL", "http://ai-1.msk.21-school.ru:11436/v1")
+    base_url = os.getenv("LLM_BASE_URL", "http://10.77.88.5:11436")
     model    = os.getenv("LLM_MODEL", "qwen3.5:9b")
-
-    client = OpenAI(api_key="ollama", base_url=base_url, timeout=300)
 
     user_prompt = f"""Проанализируй следующие материалы образовательной программы по AI PDLC Competency Matrix v2.
 
@@ -41,20 +39,28 @@ def analyze_program_stream(
     log.info("gap-analysis started | program=%s scenario=%s model=%s url=%s",
              program_name, scenario, model, base_url)
 
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": user_prompt},
-            ],
-            temperature=0.2,
-            max_tokens=4000,
-            stream=False,
-            extra_body={"think": False},
-        )
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": user_prompt},
+        ],
+        "stream": False,
+        "think": False,
+        "options": {
+            "temperature": 0.2,
+            "num_predict": 4000,
+        },
+    }
 
-        content = response.choices[0].message.content or ""
+    try:
+        with httpx.Client(timeout=300) as client:
+            response = client.post(f"{base_url}/api/chat", json=payload)
+            response.raise_for_status()
+
+        data    = response.json()
+        content = data.get("message", {}).get("content", "")
+
         log.info("gap-analysis finished | program=%s chars=%d", program_name, len(content))
         yield content
 
