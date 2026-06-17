@@ -1,4 +1,5 @@
 import os
+import json
 import traceback
 import httpx
 from dotenv import load_dotenv
@@ -45,7 +46,7 @@ def analyze_program_stream(
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": user_prompt},
         ],
-        "stream": False,
+        "stream": True,
         "options": {
             "temperature": 0.2,
             "num_predict": 4000,
@@ -53,28 +54,26 @@ def analyze_program_stream(
     }
 
     try:
+        content_chunks: list[str] = []
+
         with httpx.Client(timeout=300) as client:
-            response = client.post(f"{base_url}/api/chat", json=payload)
-            response.raise_for_status()
+            with client.stream("POST", f"{base_url}/api/chat", json=payload) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    chunk = json.loads(line)
+                    delta = chunk.get("message", {}).get("content", "")
+                    if delta:
+                        content_chunks.append(delta)
+                        yield delta
+                    if chunk.get("done"):
+                        log.info("ollama done | eval_count=%s done_reason=%s",
+                                 chunk.get("eval_count"), chunk.get("done_reason"))
+                        break
 
-        data    = response.json()
-        message = data.get("message", {})
-
-        log.info("ollama response keys: %s | message keys: %s",
-                 list(data.keys()), list(message.keys()))
-
-        content = message.get("content", "")
-
-        # thinking-модели (qwen3.5) кладут ответ в content,
-        # но если там только thinking-теги — берём thinking как fallback
-        if not content.strip() or content.strip() == "#":
-            thinking = message.get("thinking", "")
-            log.warning("content empty/stub, using thinking field | thinking_chars=%d", len(thinking))
-            content = thinking
-
-        log.info("gap-analysis finished | program=%s chars=%d | preview=%.80r",
-                 program_name, len(content), content)
-        yield content
+        total = sum(len(c) for c in content_chunks)
+        log.info("gap-analysis finished | program=%s chars=%d", program_name, total)
 
     except Exception:
         log.error("gap-analysis failed | program=%s\n%s", program_name, traceback.format_exc())
