@@ -46,7 +46,6 @@ def analyze_program_stream(
             {"role": "user",   "content": user_prompt},
         ],
         "stream": False,
-        "think": False,
         "options": {
             "temperature": 0.2,
             "num_predict": 4000,
@@ -59,9 +58,22 @@ def analyze_program_stream(
             response.raise_for_status()
 
         data    = response.json()
-        content = data.get("message", {}).get("content", "")
+        message = data.get("message", {})
 
-        log.info("gap-analysis finished | program=%s chars=%d", program_name, len(content))
+        log.info("ollama response keys: %s | message keys: %s",
+                 list(data.keys()), list(message.keys()))
+
+        content = message.get("content", "")
+
+        # thinking-модели (qwen3.5) кладут ответ в content,
+        # но если там только thinking-теги — берём thinking как fallback
+        if not content.strip() or content.strip() == "#":
+            thinking = message.get("thinking", "")
+            log.warning("content empty/stub, using thinking field | thinking_chars=%d", len(thinking))
+            content = thinking
+
+        log.info("gap-analysis finished | program=%s chars=%d | preview=%.80r",
+                 program_name, len(content), content)
         yield content
 
     except Exception:
