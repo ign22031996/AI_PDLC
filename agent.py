@@ -42,7 +42,7 @@ def analyze_program_stream(
              program_name, scenario, model, base_url)
 
     try:
-        stream = client.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -51,26 +51,12 @@ def analyze_program_stream(
             temperature=0.2,
             max_tokens=4000,
             stream=False,
-            think=False
+            extra_body={"think": False},
         )
 
-        total_chars = 0
-        inside_think = False
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if not delta:
-                continue
-            # фильтруем <think>...</think> блоки thinking-моделей
-            if "<think>" in delta:
-                inside_think = True
-            if inside_think:
-                if "</think>" in delta:
-                    inside_think = False
-                continue
-            total_chars += len(delta)
-            yield delta
-
-        log.info("gap-analysis finished | program=%s chars=%d", program_name, total_chars)
+        content = response.choices[0].message.content or ""
+        log.info("gap-analysis finished | program=%s chars=%d", program_name, len(content))
+        yield content
 
     except Exception:
         log.error("gap-analysis failed | program=%s\n%s", program_name, traceback.format_exc())
