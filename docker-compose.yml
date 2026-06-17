@@ -2,6 +2,7 @@ services:
   app:
     build:
       context: .
+      dockerfile: Dockerfile
       args:
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://nexus-dashboard.21-school.ru/repository/pypi-proxy/simple/}
     image: ai-pdlc-gap-analyzer:latest
