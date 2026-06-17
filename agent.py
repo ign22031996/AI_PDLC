@@ -50,7 +50,8 @@ def analyze_program_stream(
             ],
             temperature=0.2,
             max_tokens=4000,
-            stream=True,
+            stream=False,
+            think=False
         )
 
         total_chars = 0
