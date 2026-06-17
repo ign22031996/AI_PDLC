@@ -1,0 +1,109 @@
+AI PDLC Branch Certification Report
+
+1. Certification Summary
+Metric
+Result
+Current AI PDLC Level
+Junior-2
+Target Level
+Middle-1
+Certification Readiness
+41%
+AI-native Readiness
+Medium-Low
+Transformation Priority
+High
+
+
+2. Competency Coverage
+Competency
+Coverage
+Level
+Prompting
+High
+J2
+Prompt Engineering
+Medium
+J1
+Context Management
+Low
+J0
+Tool Usage
+Missing
+—
+Agent Teams
+Missing
+—
+
+
+3. Capability Interactions
+Prompting + Analytical Thinking
+Проект развивает:
+decomposition,
+hypothesis generation,
+AI-assisted research.
+Ограничение:
+отсутствует reusable prompting system.
+
+Context Management + Research
+Проект учит:
+сбору артефактов,
+исследовательскому workflow.
+Не хватает:
+persistent context,
+memory handling,
+long-running AI workflows.
+
+Tool Usage + Validation
+Проект НЕ формирует:
+AI verification pipeline;
+tool orchestration;
+external integrations.
+
+4. AI PDLC Gaps
+Critical gaps
+отсутствует AI evaluation;
+отсутствует orchestration;
+отсутствует multi-agent workflow.
+
+Risk
+Выпускник умеет:
+исследовать,
+анализировать,
+декомпозировать.
+Но не умеет:
+работать в AI-native production workflow.
+
+5. Recommended Upgrade Path
+To reach Junior-3
+Добавить:
+prompt templates;
+iterative prompting;
+AI critique loops.
+
+To reach Middle-1
+Добавить:
+MCP integrations;
+agent workflows;
+context orchestration tasks.
+
+6. Suggested New Tasks
+Task
+Target Competency
+AI decomposition lab
+Prompt Engineering
+AI validation challenge
+AI Evaluation
+Context continuation project
+Context Management
+Multi-agent research workflow
+Agent Teams
+
+
+7. Final Assessment
+Current output
+Traditional Analyst → AI PDLC Junior-2
+
+After recommended transformation
+AI-native Analyst → Middle-1
+
