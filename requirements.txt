@@ -3,4 +3,3 @@ gigachat>=0.1.28
 openpyxl==3.1.2
 python-dotenv==1.0.1
 pyyaml>=6.0
-langfuse>=2.0.0

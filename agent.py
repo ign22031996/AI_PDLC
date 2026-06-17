@@ -3,7 +3,6 @@ import traceback
 from dotenv import load_dotenv
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
-from langfuse import Langfuse
 from prompts import SYSTEM_PROMPT
 from logger import get_logger
 from typing import Generator
@@ -11,7 +10,6 @@ from typing import Generator
 load_dotenv()
 
 log = get_logger(__name__)
-langfuse = Langfuse()
 
 
 def analyze_program_stream(
@@ -41,21 +39,7 @@ def analyze_program_stream(
 Не придумывай компетенции которых нет — ставь N0 если компетенция отсутствует.
 """
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user",   "content": user_prompt},
-    ]
-
     log.info("gap-analysis started | program=%s scenario=%s model=%s", program_name, scenario, model)
-
-    trace      = langfuse.trace(name=f"gap-analysis:{program_name}")
-    generation = trace.generation(
-        name="gigachat-stream",
-        model=model,
-        input=messages,
-    )
-
-    full_chunks: list[str] = []
 
     try:
         chat = Chat(
@@ -67,6 +51,7 @@ def analyze_program_stream(
             max_tokens=4000,
         )
 
+        total_chars = 0
         with GigaChat(
             credentials=credentials,
             scope=scope,
@@ -77,16 +62,11 @@ def analyze_program_stream(
                 if chunk.choices:
                     delta = chunk.choices[0].delta.content
                     if delta:
-                        full_chunks.append(delta)
+                        total_chars += len(delta)
                         yield delta
 
-        output = "".join(full_chunks)
-        generation.end(output=output)
-        langfuse.flush()
-        log.info("gap-analysis finished | program=%s chars=%d", program_name, len(output))
+        log.info("gap-analysis finished | program=%s chars=%d", program_name, total_chars)
 
     except Exception:
         log.error("gap-analysis failed | program=%s\n%s", program_name, traceback.format_exc())
-        generation.end(level="ERROR", status_message=traceback.format_exc())
-        langfuse.flush()
         raise
