@@ -1,12 +1,24 @@
+import logging
+import sys
 import streamlit as st
 from dotenv import load_dotenv
 from parser import build_program_text
 from agent import analyze_program_stream
+from logger import get_logger
 import datetime
 import base64
 import os
 
 load_dotenv()
+
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+    force=True,
+)
+log = get_logger(__name__)
 
 def _logo_b64() -> str:
     path = os.path.join(os.path.dirname(__file__), "static", "logo.webp")
@@ -354,6 +366,8 @@ if analyze_btn and xlsx_file:
             st.session_state["report"] = report
             st.session_state["report_name"] = name
     except Exception as e:
+        import traceback
+        log.error("Analysis failed | program=%s\n%s", name, traceback.format_exc())
         st.error(f"Ошибка при анализе: {e}")
 
 # ── Кнопка скачать (показывается после завершения стрима) ──────────────────────

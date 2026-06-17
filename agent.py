@@ -1,10 +1,17 @@
 import os
+import traceback
 from dotenv import load_dotenv
-from langfuse.openai import OpenAI
+from gigachat import GigaChat
+from gigachat.models import Chat, Messages, MessagesRole
+from langfuse import Langfuse
 from prompts import SYSTEM_PROMPT
+from logger import get_logger
 from typing import Generator
 
 load_dotenv()
+
+log = get_logger(__name__)
+langfuse = Langfuse()
 
 
 def analyze_program_stream(
@@ -12,11 +19,10 @@ def analyze_program_stream(
     program_name: str = "Учебная программа",
     scenario: str = "А — Проектируемая программа",
 ) -> Generator[str, None, None]:
-    api_key  = os.getenv("OPENAI_API_KEY", "ollama")
-    base_url = os.getenv("OPENAI_BASE_URL", "http://10.77.88.5:11435/v1")
-    model    = os.getenv("OPENAI_MODEL", "qwen3.5:4b")
-
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=300)
+    credentials = os.getenv("GIGACHAT_CREDENTIALS", "")
+    model       = os.getenv("GIGACHAT_MODEL", "GigaChat")
+    verify_ssl  = os.getenv("GIGACHAT_VERIFY_SSL", "false").lower() == "true"
+    scope       = os.getenv("GIGACHAT_SCOPE", "GIGACHAT_API_PERS")
 
     user_prompt = f"""Проанализируй следующие материалы образовательной программы по AI PDLC Competency Matrix v2.
 
@@ -35,20 +41,52 @@ def analyze_program_stream(
 Не придумывай компетенции которых нет — ставь N0 если компетенция отсутствует.
 """
 
-    stream = client.chat.completions.create(
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user",   "content": user_prompt},
+    ]
+
+    log.info("gap-analysis started | program=%s scenario=%s model=%s", program_name, scenario, model)
+
+    trace      = langfuse.trace(name=f"gap-analysis:{program_name}")
+    generation = trace.generation(
+        name="gigachat-stream",
         model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.2,
-        max_tokens=4000,
-        stream=True,
-        name=f"gap-analysis: {program_name}",
-        extra_body={"think": False},
+        input=messages,
     )
 
-    for chunk in stream:
-        delta = chunk.choices[0].delta.content
-        if delta:
-            yield delta
+    full_chunks: list[str] = []
+
+    try:
+        chat = Chat(
+            messages=[
+                Messages(role=MessagesRole.SYSTEM, content=SYSTEM_PROMPT),
+                Messages(role=MessagesRole.USER,   content=user_prompt),
+            ],
+            temperature=0.2,
+            max_tokens=4000,
+        )
+
+        with GigaChat(
+            credentials=credentials,
+            scope=scope,
+            verify_ssl_certs=verify_ssl,
+            timeout=300,
+        ) as giga:
+            for chunk in giga.stream(chat):
+                if chunk.choices:
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        full_chunks.append(delta)
+                        yield delta
+
+        output = "".join(full_chunks)
+        generation.end(output=output)
+        langfuse.flush()
+        log.info("gap-analysis finished | program=%s chars=%d", program_name, len(output))
+
+    except Exception:
+        log.error("gap-analysis failed | program=%s\n%s", program_name, traceback.format_exc())
+        generation.end(level="ERROR", status_message=traceback.format_exc())
+        langfuse.flush()
+        raise
